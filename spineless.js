@@ -45,8 +45,8 @@ var _ = (function(){
     , isNull      = function(obj) { return obj === null                     }
     , isUndefined = function(obj) { return obj === void 0                   }
     , isElement   = function(obj) { return obj && obj.nodeType == 1         }
-    , isWindow    = function(obj) { return obj != null && obj == obj.window }
-    , isBool      = function(obj) { return obj === true || obj === false || toString(obj) == objBoolean }
+    , isWindow    = function(obj) { return obj && obj.window == obj         }
+    , isBool      = function(obj) { return obj === true || obj === false    }
 
     , bind = function(ctx) { return function(mtd){ var ctx = ctx; return function(){ mtd.apply(ctx, slice(arguments)) } } }
 
