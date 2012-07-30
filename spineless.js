@@ -7,71 +7,24 @@ var _ = (function(){
   var id       = function(x)    { return x }
     , constant = function(x)    { return function() { return x }}
 
-    , ArrayProt  = Array.prototype
-    , ObjProt  = Object.prototype
-    , FuncProt = Function.prototype
+    , ArrayProt    = Array.prototype
+    , ObjectProt   = Object.prototype
+    , FunctionProt = Function.prototype
+
+    , slice    = function(args,n)   { return ArrayProt.slice.call(args, n || 0) }
+    , hasProp  = function(obj,prop) { return ObjectProt.hasProperty.call(obj, prop) }
+    , toString = function(obj)      { return ObjectProt.toString.call(obj) }
 
     , nativeSome         = ArrayProt.some
     , nativeKeys         = Object.keys
-    , nativeBind         = FuncProt.bind
+    , nativeBind         = FunctionProt.bind
     , nativeReduce       = ArrayProt.reduce
-    , nativeIsArray      = Array.isArray
     , nativeIndexOf      = ArrayProt.indexOf
     , nativeReduceRight  = ArrayProt.reduceRight
     , nativeLastIndexOf  = ArrayProt.lastIndexOf
-  ;//var
 
-  if(!ArrayProt.forEach){
-    ArrayProt.forEach = function(iterator, context){
-      for(var i = 0, l = this.length; i < l; i++)
-        i in this && iterator.call(context, this[i], i, this);
-    };
-  }
-
-  if(!ArrayProt.map){
-    ArrayProt.map = function(iterator, context){
-      var results = [];
-      this.forEach(function(value, index, list){
-        results[results.length] = iterator(value, index, list);
-      }, context);
-      return results;
-    };
-  }
-
-  if(!ArrayProt.filter){
-    ArrayProt.filter = function(iterator, context){
-      var results = [];
-      this.forEach(function(value, index, list){
-        if(iterator(value, index, list)) results[results.length] = value;
-      }, context);
-      return results;
-    };
-  }
-
-  if(!ArrayProt.every){
-    ArrayProt.every = function(iterator, context){
-      for(var i = 0, l = this.length; i < l; i++)
-        if(i in this && !iterator.call(context, this[i], i, this)) return false;
-      return true;
-    };
-  }
-
-  if(!FuncProt.bind){
-    FuncProt.bind = function(){
-      
-    };
-  }
-
-
-  var slice    = function(args, n) { return ArrayProt.slice.call(args, n || 0) }
-    , push     = function(ctx)     { return function(){ return ArrayProt.push.apply(ctx, slice(arguments)) } }
-    , pop      = function(ctx)     { return function(){ return ArrayProt.pop.apply(ctx,  slice(arguments)) } }
-
-    , toString = function(obj) { return ObjProt.toString.call(obj) }
-    , has      = function(obj) { return function(prop){ return ObjProt.hasProperty.call(obj, prop) } }
-
-    , isArray     = nativeIsArray ||
-                    function(obj) { return toString(obj) == objArray        }
+    , isArray     = Array.isArray || (Array.isArray =
+                    function(obj) { return toString(obj) == objArray        })
     , isDate      = function(obj) { return toString(obj) == objDate         }
     , isRegExp    = function(obj) { return toString(obj) == objRegExp       }
     , isString    = function(obj) { return toString(obj) == objString       }
@@ -85,13 +38,18 @@ var _ = (function(){
     , isWindow    = function(obj) { return obj && obj.window == obj         }
     , isBool      = function(obj) { return obj === true || obj === false    }
 
-    , bind = function(ctx) { return function(mtd){ var ctx = ctx; return function(){ mtd.apply(ctx, slice(arguments)) } } }
+    , extend = function(obj){
+        obj.forEach(slice(arguments, 1), function(source){
+          for(k in source)
+            obj[k] = source[k];
+        });
+        return obj;
+      }
 
     , isEmpty = function(obj) {
         if(obj == null) return true;
         if(isArray(obj) || isString(obj)) return obj.length === 0;
-        var objHas = has(obj);
-        for(var k in obj) if(objHas(k)) return false;
+        for(var k in obj) if(hasProp(obj, k)) return false;
         return true;
       }
 
@@ -101,7 +59,7 @@ var _ = (function(){
         }
 
         try{
-          if(obj.constructor && has(obj)('constructor') && has(obj.constructor.prototype)('isPrototypeOf')){
+          if(obj.constructor && hasProp(obj, 'constructor') && hasProp(obj.constructor.prototype, 'isPrototypeOf')){
             return false;
           }
         } catch(e){ return false }
@@ -109,7 +67,7 @@ var _ = (function(){
         var k;
         for(k in obj){}
 
-        return k === undefined || has(obj)(k);
+        return k === undefined || hasProp(obj, k);
       }
 
     , isEqual = function(a, b, stack){
@@ -168,12 +126,11 @@ var _ = (function(){
         else{
           if(a.constructor != b.constructor) return false;
 
-          var aHas = has(a), bHas = has(b);
           for(var k in a){
-            if(aHas(k)){
+            if(hasProp(a, k)){
               size++;
 
-              if(!(result = bHas(k) && eq(a[k], b[k], stack))) break;
+              if(!(result = hasProp(b, k) && eq(a[k], b[k], stack))) break;
             }
           }
 
@@ -181,7 +138,7 @@ var _ = (function(){
           // the same number of properties
           if(result){
             for(k in b)
-              if(bHas(k) && !(size--)) break;
+              if(hasProp(b, k) && !(size--)) break;
             result = !size;
           }
         }
@@ -189,27 +146,66 @@ var _ = (function(){
         stack.pop();
         return result;
       }
-
-    , each = function(obj, iterator, context){
-        if(obj.forEach){
-          obj.forEach(iterator, context);
-        }
-        else{
-          var objHas = has(obj);
-          for(var k in obj)
-            if(objHas(k))
-              iterator.call(context, obj[k], k, obj);
-        }
-      }
-
-    , extend = function(obj){
-        each(slice(arguments, 1), function(source){
-          for(k in source)
-            obj[k] = source[k];
-        });
-        return obj;
-      }
   ;//var
+
+  if(!ArrayProt.forEach){
+    ArrayProt.forEach = function(iterator, context){
+      for(var i = 0, l = this.length; i < l; i++)
+        i in this && iterator.call(context, this[i], i, this);
+    };
+  }
+
+  if(!ObjectProt.forEach){
+    ObjectProt.forEach = function(iterator, context){
+      for(var k in this)
+        hasProp(this, k) && iterator.call(context, this[k], k, this);
+    };
+  }
+
+  if(!ArrayProt.map){
+    ArrayProt.map = function(iterator, context){
+      var results = [];
+      this.forEach(function(value, index, list){
+        results[results.length] = iterator(value, index, list);
+      }, context);
+      return results;
+    };
+  }
+
+  if(!ArrayProt.filter){
+    ArrayProt.filter = function(iterator, context){
+      var results = [];
+      this.forEach(function(value, index, list){
+        if(iterator(value, index, list)) results[results.length] = value;
+      }, context);
+      return results;
+    };
+  }
+
+  if(!ArrayProt.every){
+    ArrayProt.every = function(iterator, context){
+      for(var i = 0, l = this.length; i < l; i++)
+        if(i in this && !iterator.call(context, this[i], i, this)) return false;
+      return true;
+    };
+  }
+
+  if(!ObjectProt.every){
+    ObjectProt.every = function(iterator, context){
+      for(var k in this)
+        if(hasProp(this, k) && !iterator.call(context, this[k], k, this)) return false;
+      return true;
+    };
+  }
+
+  if(!FunctionProt.bind){
+    FunctionProt.bind = function(context){
+      var self = this;
+      return function(){
+        return self.apply(context, slice(arguments));
+      };
+    };
+  }
 
   if(!isArgs(arguments))
     isArgs = function(obj) { return !!(obj && has(obj)('callee')) }
