@@ -17,10 +17,6 @@ var _ = (function(){
 
     , nativeSome         = ArrayProt.some
     , nativeKeys         = Object.keys
-    , nativeBind         = FunctionProt.bind
-    , nativeReduce       = ArrayProt.reduce
-    , nativeIndexOf      = ArrayProt.indexOf
-    , nativeReduceRight  = ArrayProt.reduceRight
     , nativeLastIndexOf  = ArrayProt.lastIndexOf
 
     , isArray     = Array.isArray || (Array.isArray =
@@ -148,6 +144,9 @@ var _ = (function(){
       }
   ;//var
 
+  if(!isArgs(arguments))
+    isArgs = function(obj) { return !!(obj && has(obj)('callee')) }
+
   if(!ArrayProt.forEach){
     ArrayProt.forEach = function(iterator, context){
       for(var i = 0, l = this.length; i < l; i++)
@@ -207,8 +206,50 @@ var _ = (function(){
     };
   }
 
-  if(!isArgs(arguments))
-    isArgs = function(obj) { return !!(obj && has(obj)('callee')) }
+  if(!ArrayProt.reduce){
+    ArrayProt.reduce = function(iterator, initial){
+      var curr   = initial
+        , length = this.length
+        , idx    = -1
+      ;//var
+
+      if(length){
+        arguments.length == 1 && (curr = this[++idx]);
+        while(++idx < length)
+          i in this && (curr = iterator(curr, this[idx], idx, this));
+      }
+      return curr;
+    };
+  }
+
+  if(!ArrayProt.reduceRight){
+    ArrayProt.reduceRight = function(iterator, initial){
+      var curr = initial
+        , idx  = this.length
+      ;//var
+
+      if(idx){
+        arguments.length == 1 && (curr = this[--idx]);
+        while(idx--)
+          i in this && (curr = iterator(curr, this[idx], idx, this));
+      }
+      return curr;
+    };
+  }
+
+  if(!ArrayProt.indexOf){
+    ArrayProt.indexOf = function(needle, start){
+      var l = this.length
+        , i = start ? start < 0 ? l + start : start : 0
+      ;//var
+      if(i < l && i >= 0)
+        while(i < l){
+          if(i in this && this[i] === needle) return i;
+          i++;
+        }
+      return -1;
+    };
+  }
 
   var eventSplitter = /\s+/;
   Events = {
