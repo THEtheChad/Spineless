@@ -305,65 +305,51 @@ var _ = (function(){
 
   var eventSplitter = /\s+/;
   Events = {
-    _on: function(events, callback, context){
-      var calls, list, event, tail;
-      if(callback){
-        calls  = this._callbacks || (this._callbacks = {});
-        events = events.split(eventSplitter);
-
-        while(event = events.pop()){
-          list = calls[event];
-          node = list ? list.tail : {};
-          node.next = tail = {};
-          node.context  = context;
-          node.callback = callback;
-          calls[event] = {tail: tail, next: list ? list.next : node};
-        }
-      }
-
+    _on: function(events, callback, context) {
+      var list, calls = this._callbacks || (this._callbacks = {});
+      events
+        .split(eventSplitter)
+        .forEach(function(event){
+            list = calls[event] || (calls[event] = []);
+            list.push({context: context, callback: callback});
+          })
+      ;//events
       return this;
     },
 
-    _off: function(events, callback, context){
-      var calls, node, tail, flag, prev;
-
-      if(calls = this._callbacks){
-        if(events){
-          events = events.split(eventSplitter);
-          while(event = events.pop()){
-            if(!callback) delete calls[event];
-            else if(node = prev = calls[event]){
-              tail = node.tail;
-              while((node = node.next) !== tail){
-                if(flag && (prev.next = node)) return this;
-                node.callback === callback && (flag = true);
-                !flag && (prev = node);
-              }
-            }
-          }
-        }
-        else delete this._callbacks;
+    _off: function(events, callback) {
+      if(this._callbacks){
+        var calls = this._callbacks;
+        events
+          .split(eventSplitter)
+          .forEach(function(event) {
+            // this event doesn't have any callbacks
+            if(!calls[event]) return;
+            // remove all the callbacks for this event
+            if(!callback){ delete calls[event]; return };
+            calls[event] = calls[event].filter(function(node){ return callback !== node.callback; });
+          })
+        ;//events
       }
-
       return this;
     },
 
-    _trigger: function(events){
-      var args, calls, event, tail;
-      if(calls = this._callbacks){
-        args   = slice(arguments, 1);
-        events = events.split(eventSplitter);
-
-        while(event = events.pop()){
-          if(node = calls[event]){
-            tail = node.tail;
-            while((node = node.next) !== tail){
-              node.callback.apply(node.context || this, args);
-            }
-          }
-        }
+    _trigger: function(events) {
+      if(this._callbacks){
+        var calls = this._callbacks
+          , args  = slice(arguments, 1)
+          , list
+        ;//var
+        events
+          .split(eventSplitter)
+          .forEach(function(event){
+              list = calls[event] || [];
+              list.forEach(function(node){
+                node.callback.apply(node.context, args);
+              });
+            })
+        ;//events
       }
-
       return this;
     }
   };
