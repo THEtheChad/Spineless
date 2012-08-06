@@ -323,11 +323,11 @@ var _ = (function(){
         events
           .split(eventSplitter)
           .forEach(function(event) {
-            // this event doesn't have any callbacks
-            if(!calls[event]) return;
-            // remove all the callbacks for this event
-            if(!callback){ delete calls[event]; return };
-            calls[event] = calls[event].filter(function(node){ return callback !== node.callback; });
+            if(calls[event]){
+              if(callback)
+                calls[event] = calls[event].filter(function(node){ return callback !== node.callback });
+              else delete calls[event];
+            }
           })
         ;//events
       }
@@ -335,15 +335,15 @@ var _ = (function(){
     },
 
     _trigger: function(events) {
-      var calls, args = slice(arguments, 1), list;
+      var calls, list, args = slice(arguments, 1);
       if(calls = this._callbacks){
         events
           .split(eventSplitter)
           .forEach(function(event){
-              list = calls[event] || [];
-              list.forEach(function(node){
-                node.callback.apply(node.context, args);
-              });
+              if(list = calls[event])
+                list.forEach(function(node){
+                  node.callback.apply(node.context, args);
+                });
             })
         ;//events
       }
