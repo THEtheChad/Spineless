@@ -318,8 +318,8 @@ var _ = (function(){
     },
 
     _off: function(events, callback) {
-      if(this._callbacks){
-        var calls = this._callbacks;
+      var calls;
+      if(calls = this._callbacks){
         events
           .split(eventSplitter)
           .forEach(function(event) {
@@ -335,11 +335,8 @@ var _ = (function(){
     },
 
     _trigger: function(events) {
-      if(this._callbacks){
-        var calls = this._callbacks
-          , args  = slice(arguments, 1)
-          , list
-        ;//var
+      var calls, args = slice(arguments, 1), list;
+      if(calls = this._callbacks){
         events
           .split(eventSplitter)
           .forEach(function(event){
