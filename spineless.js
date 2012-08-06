@@ -1,41 +1,53 @@
 var _ = (function(){
 
-  var type, objList = 'Array,Object,Date,Function,Arguments,Boolean,RegExp,String,Number,Null,Undefined'.split(',');
-  while(type = objList.pop())
-    this['obj' + type] = '[object ' + type + ']';
-
-  var id       = function(x)    { return x }
-    , constant = function(x)    { return function() { return x }}
+  var identity = function(x) { return x }
+    , constant = function(x) { return function() { return x } }
 
     , ArrayProt    = Array.prototype
     , ObjectProt   = Object.prototype
     , FunctionProt = Function.prototype
 
+    , objNull      = '[object Null]'
+    , objDate      = '[object Date]'
+    , objArray     = '[object Array]'
+    , objObject    = '[object Object]'
+    , objRegExp    = '[object RegExp]'
+    , objString    = '[object String]'
+    , objNumber    = '[object Number]'
+    , objBoolean   = '[object Boolean]'
+    , objFunction  = '[object Function]'
+    , objArguments = '[object Arguments]'
+    , objUndefined = '[object Undefined]'
+
     , slice    = function(args,n)   { return ArrayProt.slice.call(args, n || 0) }
-    , hasProp  = function(obj,prop) { return ObjectProt.hasProperty.call(obj, prop) }
+    , hasProp  = function(obj,prop) { return ObjectProt.hasOwnProperty.call(obj, prop) }
     , toString = function(obj)      { return ObjectProt.toString.call(obj) }
 
-    , nativeSome         = ArrayProt.some
-    , nativeKeys         = Object.keys
-    , nativeLastIndexOf  = ArrayProt.lastIndexOf
-
     , isArray     = Array.isArray || (Array.isArray =
-                    function(obj) { return toString(obj) == objArray        })
-    , isDate      = function(obj) { return toString(obj) == objDate         }
-    , isRegExp    = function(obj) { return toString(obj) == objRegExp       }
-    , isString    = function(obj) { return toString(obj) == objString       }
-    , isNumber    = function(obj) { return toString(obj) == objNumber       }
-    , isFunc      = function(obj) { return toString(obj) == objFunction     }
-    , isArgs      = function(obj) { return toString(obj) == objArguments    }
-    , isNaN       = function(obj) { return obj !== obj                      }
-    , isNull      = function(obj) { return obj === null                     }
-    , isUndefined = function(obj) { return obj === void 0                   }
-    , isElement   = function(obj) { return obj && obj.nodeType == 1         }
-    , isWindow    = function(obj) { return obj && obj.window == obj         }
-    , isBool      = function(obj) { return obj === true || obj === false    }
+                    function(obj) { return toString(obj) == objArray     })
+    , isDate      = function(obj) { return toString(obj) == objDate      }
+    , isRegExp    = function(obj) { return toString(obj) == objRegExp    }
+    , isString    = function(obj) { return toString(obj) == objString    }
+    , isNumber    = function(obj) { return toString(obj) == objNumber    }
+    , isObject    = function(obj) { return toString(obj) == objObject    }
+    , isFunc      = function(obj) { return toString(obj) == objFunction  }
+    , isArgs      = function(obj) { return toString(obj) == objArguments }
+    , isNaN       = function(obj) { return obj !== obj                   }
+    , isNull      = function(obj) { return obj === null                  }
+    , isUndefined = function(obj) { return obj === void 0                }
+    , isElement   = function(obj) { return obj && obj.nodeType == 1      }
+    , isWindow    = function(obj) { return obj && obj.window == obj      }
+    , isBool      = function(obj) { return obj === true || obj === false }
+
+    , keys = Object.keys || (Object.keys = function(obj){
+        var keys = [], k;
+        for(k in obj)
+          if(hasProp(obj, k)) keys.push(k);
+        return keys;
+      })
 
     , extend = function(obj){
-        obj.forEach(slice(arguments, 1), function(source){
+        slice(arguments, 1).forEach(function(source){
           for(k in source)
             obj[k] = source[k];
         });
@@ -49,8 +61,8 @@ var _ = (function(){
         return true;
       }
 
-    , isObject = function(obj) {
-        if(!obj || toString(obj) != objObj || obj.nodeType || isWindow(obj)){
+    , isPlainObject = function(obj) {
+        if(!obj || toString(obj) != objObject || obj.nodeType || isWindow(obj)){
           return false;
         }
 
@@ -60,10 +72,9 @@ var _ = (function(){
           }
         } catch(e){ return false }
 
-        var k;
-        for(k in obj){}
+        for(var k in obj){}
 
-        return k === undefined || hasProp(obj, k);
+        return k === void 0 || hasProp(obj, k);
       }
 
     , isEqual = function(a, b, stack){
@@ -142,14 +153,25 @@ var _ = (function(){
         stack.pop();
         return result;
       }
+
+    , template = function(text){
+        source = 'return "' +
+          text.replace(/\{\{(.*?)\}\}/g, function(match, code){
+            return '"+(' + code + ')+"';
+          }) +
+          '"';
+
+        return new Function('obj', source);
+      }
   ;//var
 
   if(!isArgs(arguments))
-    isArgs = function(obj) { return !!(obj && has(obj)('callee')) }
+    isArgs = function(obj) { return !!(obj && hasProp(obj, 'callee')) }
 
   if(!ArrayProt.forEach){
     ArrayProt.forEach = function(iterator, context){
-      for(var i = 0, l = this.length; i < l; i++)
+      var i = this.length;
+      while(i--)
         i in this && iterator.call(context, this[i], i, this);
     };
   }
@@ -165,7 +187,7 @@ var _ = (function(){
     ArrayProt.map = function(iterator, context){
       var results = [];
       this.forEach(function(value, index, list){
-        results[results.length] = iterator(value, index, list);
+        results.push(iterator(value, index, list));
       }, context);
       return results;
     };
@@ -175,7 +197,7 @@ var _ = (function(){
     ArrayProt.filter = function(iterator, context){
       var results = [];
       this.forEach(function(value, index, list){
-        if(iterator(value, index, list)) results[results.length] = value;
+        if(iterator(value, index, list)) results.push(value);
       }, context);
       return results;
     };
@@ -183,7 +205,8 @@ var _ = (function(){
 
   if(!ArrayProt.every){
     ArrayProt.every = function(iterator, context){
-      for(var i = 0, l = this.length; i < l; i++)
+      var i = this.length;
+      while(i--)
         if(i in this && !iterator.call(context, this[i], i, this)) return false;
       return true;
     };
@@ -197,43 +220,58 @@ var _ = (function(){
     };
   }
 
+  if(!ArrayProt.some){
+    ArrayProt.some = function(iterator, context){
+      var i = this.length;
+      while(i--)
+        if(i in this && iterator.call(context, this[i], i, this)) return true;
+      return false;
+    };
+  }
+
+  if(!ObjectProt.some){
+    ObjectProt.some = function(iterator, context){
+      for(var k in this)
+        if(hasProp(this, k) && iterator.call(context, this[k], k, this)) return true;
+      return false;
+    };
+  }  
+
   if(!FunctionProt.bind){
     FunctionProt.bind = function(context){
       var self = this;
-      return function(){
-        return self.apply(context, slice(arguments));
-      };
+      return function(){ return self.apply(context, slice(arguments)) };
     };
   }
 
   if(!ArrayProt.reduce){
     ArrayProt.reduce = function(iterator, initial){
-      var curr   = initial
+      var result = initial
         , length = this.length
         , idx    = -1
       ;//var
 
       if(length){
-        arguments.length == 1 && (curr = this[++idx]);
+        arguments.length == 1 && (result = this[++idx]);
         while(++idx < length)
-          i in this && (curr = iterator(curr, this[idx], idx, this));
+          i in this && (result = iterator(result, this[idx], idx, this));
       }
-      return curr;
+      return result;
     };
   }
 
   if(!ArrayProt.reduceRight){
     ArrayProt.reduceRight = function(iterator, initial){
-      var curr = initial
-        , idx  = this.length
+      var result = initial
+        , idx    = this.length
       ;//var
 
       if(idx){
-        arguments.length == 1 && (curr = this[--idx]);
+        arguments.length == 1 && (result = this[--idx]);
         while(idx--)
-          i in this && (curr = iterator(curr, this[idx], idx, this));
+          i in this && (result = iterator(result, this[idx], idx, this));
       }
-      return curr;
+      return result;
     };
   }
 
@@ -246,6 +284,20 @@ var _ = (function(){
         while(i < l){
           if(i in this && this[i] === needle) return i;
           i++;
+        }
+      return -1;
+    };
+  }
+
+  if(!ArrayProt.lastIndexOf){
+    ArrayProt.lastIndexOf = function(needle, start){
+      var l = this.length
+        , i = start ? start < 0 ? l + start : start : 0
+      ;//var
+      if(i < l && i >= 0)
+        while(i > 0){
+          if(i in this && this[i] === needle) return i;
+          i--;
         }
       return -1;
     };
@@ -349,11 +401,10 @@ var _ = (function(){
   Model.prototype = Events;
 
   return {
-    'pop'  : pop,
-    'push' : push,
-    'slice': slice,
-
-    'has'     : has,
+    'keys'    : keys,
+    'slice'   : slice,
+    'extend'  : extend,
+    'hasProp' : hasProp,
     'toString': toString,
 
     'isNaN'   : isNaN,
@@ -374,31 +425,28 @@ var _ = (function(){
 
     'isEqual': isEqual,
 
-    'bind'  : bind,
-    'extend': extend,
-
     'Events': Events
   };
 
 })();
 
-var obj = {
-  a:1,
-  b:2,
-  c:3,
-  d:4
-};
-var test = new Model(obj);
+// var obj = {
+//   a:1,
+//   b:2,
+//   c:3,
+//   d:4
+// };
+// var test = new Model(obj);
 
-var a = [1,2,3,4];
-var b = [1,2,3,4];
+// var a = [1,2,3,4];
+// var b = [1,2,3,4];
 
-var func1 = function(){console.log('a', arguments)}
-var func2 = function(){console.log('b', arguments)}
-var func3 = function(){console.log('c', arguments)}
-var func4 = function(){console.log('d', arguments)}
+// var func1 = function(){console.log('a', arguments)}
+// var func2 = function(){console.log('b', arguments)}
+// var func3 = function(){console.log('c', arguments)}
+// var func4 = function(){console.log('d', arguments)}
 
-test._on('change:a', func1);
-test._on('change:b', func2);
-test._on('change:c', func3);
-test._on('change:d', func4);
+// test._on('change:a', func1);
+// test._on('change:b', func2);
+// test._on('change:c', func3);
+// test._on('change:d', func4);
